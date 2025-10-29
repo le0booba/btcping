@@ -1,105 +1,127 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LoadingSpinner } from './icons/LoadingSpinner';
+import { CheckCircleIcon } from './icons/CheckCircleIcon';
+import { XCircleIcon } from './icons/XCircleIcon';
+
+type NotificationLevel = 'first' | 'first_two' | 'all';
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+const levelOptions: { value: NotificationLevel; label: string; description: string }[] = [
+  { value: 'first', label: 'First Confirmation', description: 'Notify when a transaction gets its first confirmation.' },
+  { value: 'first_two', label: 'First Two Confirmations', description: 'Notify on the first and second confirmations.' },
+  { value: 'all', label: 'All Confirmations', description: 'Notify on every new confirmation (can be noisy).' },
+];
 
 const TelegramSettings: React.FC = () => {
-  const [chatId, setChatId] = useState('');
-  const [botToken, setBotToken] = useState('');
-  const [notificationLevel, setNotificationLevel] = useState('first');
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
+  const [isConfigured, setIsConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentLevel, setCurrentLevel] = useState<NotificationLevel>('first');
+  const [initialLevel, setInitialLevel] = useState<NotificationLevel>('first');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
 
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const response = await fetch('/api/settings');
-        if (response.ok) {
-          const data = await response.json();
-          setChatId(data.chatId || '');
-          setBotToken(data.botToken || '');
-          setNotificationLevel(data.notificationLevel || 'first');
-        } else if (response.status !== 404) {
-           console.error('Failed to fetch settings');
-        }
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-      } finally {
-        setIsLoading(false);
+  const checkSettings = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/settings');
+      if (response.ok) {
+        const data = await response.json();
+        setIsConfigured(true);
+        setCurrentLevel(data.notificationLevel || 'first');
+        setInitialLevel(data.notificationLevel || 'first');
+      } else {
+        setIsConfigured(false);
       }
-    };
-    fetchSettings();
+    } catch (error) {
+      console.error('Error checking Telegram settings:', error);
+      setIsConfigured(false);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const handleSaveSettings = async () => {
+  useEffect(() => {
+    checkSettings();
+  }, [checkSettings]);
+
+  const handleSave = async () => {
     setSaveStatus('saving');
     try {
       const response = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, botToken, notificationLevel }),
+        body: JSON.stringify({ notificationLevel: currentLevel }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to save settings');
-      }
-
-      // Dispatch a storage event so other components (like TransactionDetails) can react
-      window.dispatchEvent(new Event('storage'));
-
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      if (!response.ok) throw new Error('Failed to save settings');
+      setSaveStatus('saved');
+      setInitialLevel(currentLevel); // Update initial level to new saved state
     } catch (error) {
-      console.error('Error saving settings:', error);
-      setSaveStatus('idle');
-      // Here you might want to show an error message to the user
+      console.error('Failed to save settings:', error);
+      setSaveStatus('error');
+    } finally {
+      setTimeout(() => setSaveStatus('idle'), 2000);
     }
   };
 
   if (isLoading) {
     return (
-        <div className="bg-[#111111] border border-gray-800 p-5 rounded-lg flex justify-center items-center h-56">
-            <LoadingSpinner className="h-6 w-6 text-gray-500" />
-        </div>
+      <div className="bg-[#111111] border border-gray-800 p-5 rounded-lg flex justify-center items-center min-h-[160px]">
+        <LoadingSpinner className="h-6 w-6 text-gray-500" />
+      </div>
     );
   }
 
   return (
     <div className="bg-[#111111] border border-gray-800 p-5 rounded-lg">
-      <h2 className="text-lg font-semibold mb-1 text-white">Telegram Notifications</h2>
-      <p className="text-xs text-gray-500 mb-4">Settings are saved securely and apply to all transactions.</p>
-      <div className="space-y-3">
-        <input 
-          type="text" 
-          placeholder="Telegram Chat ID" 
-          className="w-full bg-black border border-gray-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-white focus:outline-none text-white"
-          value={chatId}
-          onChange={(e) => setChatId(e.target.value)}
-        />
-        <input 
-          type="password" 
-          placeholder="Telegram Bot Token" 
-          className="w-full bg-black border border-gray-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-white focus:outline-none text-white"
-          value={botToken}
-          onChange={(e) => setBotToken(e.target.value)}
-        />
-        <select
-            id="notification-level"
-            className="w-full bg-black border border-gray-700 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-white focus:outline-none text-white"
-            value={notificationLevel}
-            onChange={(e) => setNotificationLevel(e.target.value)}
-        >
-            <option value="first">First Confirmation Only</option>
-            <option value="first_two">First & Second Confirmations</option>
-            <option value="all">All Confirmations</option>
-            <option value="none">Disable Notifications</option>
-        </select>
-        <button 
-          className="w-full border border-gray-600 text-gray-300 text-sm font-bold px-4 py-2 rounded-md hover:bg-gray-800 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={handleSaveSettings}
-          disabled={!chatId.trim() || !botToken.trim() || saveStatus === 'saving'}
-        >
-          {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'success' ? 'Settings Saved!' : 'Save Settings'}
-        </button>
-      </div>
+      <h2 className="text-lg font-semibold mb-3 text-white">Telegram Notifications</h2>
+      {!isConfigured ? (
+        <div className="flex items-center gap-3 bg-yellow-900/20 border border-yellow-500/30 p-4 rounded-md">
+          <XCircleIcon className="h-6 w-6 text-yellow-500 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-yellow-300">Configuration Needed</p>
+            <p className="text-sm text-yellow-500">Telegram environment variables are not set on the server.</p>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="flex items-center gap-3 bg-black p-3 rounded-md mb-4">
+            <CheckCircleIcon className="h-5 w-5 text-green-500 flex-shrink-0" />
+            <p className="text-sm font-semibold text-white">Notifications Active</p>
+          </div>
+
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium text-gray-400 mb-2">Notification Level</legend>
+            {levelOptions.map(({ value, label, description }) => (
+              <label key={value} htmlFor={value} className="flex items-start gap-3 p-3 bg-black rounded-md cursor-pointer hover:bg-gray-900 transition-colors">
+                <input
+                  type="radio"
+                  id={value}
+                  name="notificationLevel"
+                  value={value}
+                  checked={currentLevel === value}
+                  onChange={() => setCurrentLevel(value)}
+                  className="mt-1 h-4 w-4 text-white bg-gray-700 border-gray-600 focus:ring-white focus:ring-2"
+                />
+                <div>
+                  <span className="font-medium text-white">{label}</span>
+                  <p className="text-xs text-gray-500">{description}</p>
+                </div>
+              </label>
+            ))}
+          </fieldset>
+          
+          <div className="mt-4 flex justify-end items-center gap-4">
+              {saveStatus === 'saved' && <p className="text-sm text-green-500">Saved!</p>}
+              {saveStatus === 'error' && <p className="text-sm text-red-500">Error!</p>}
+              <button
+                onClick={handleSave}
+                disabled={currentLevel === initialLevel || saveStatus === 'saving'}
+                className="bg-white text-black font-bold px-4 py-2 rounded-md hover:bg-gray-300 transition-colors disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
+              >
+                {saveStatus === 'saving' ? <LoadingSpinner className="h-5 w-5"/> : 'Save'}
+              </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

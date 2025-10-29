@@ -83,7 +83,10 @@ export function useBlockchain() {
         const newMap = new Map(prev);
         const existingTx = newMap.get(txid);
         if (existingTx) {
-            newMap.set(txid, { ...existingTx, ...updates });
+            // FIX: The error "Spread types may only be created from object types" points to this section.
+            // By creating an intermediate variable for the updated transaction, we can avoid potential type inference issues with the spread syntax.
+            const updatedTx: WatchedTransaction = { ...existingTx, ...updates };
+            newMap.set(txid, updatedTx);
         }
         return newMap;
     });

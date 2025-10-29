@@ -30,17 +30,20 @@ const TransactionDetails: React.FC<TransactionDetailsProps> = ({ txId, blockHeig
   const [countdown, setCountdown] = useState(600);
   
   useEffect(() => {
-    const checkTelegramConfig = () => {
-      const chatId = localStorage.getItem('telegramChatId');
-      const botToken = localStorage.getItem('telegramBotToken');
-      setIsTelegramConfigured(!!chatId && !!botToken);
+    const checkTelegramConfig = async () => {
+      try {
+        const response = await fetch('/api/settings');
+        setIsTelegramConfigured(response.ok);
+      } catch (error) {
+        console.error('Could not verify Telegram settings:', error);
+        setIsTelegramConfigured(false);
+      }
     };
-    checkTelegramConfig();
-    
-    // Listen for storage changes to update button state
-    window.addEventListener('storage', checkTelegramConfig);
-    return () => window.removeEventListener('storage', checkTelegramConfig);
-  }, []);
+
+    if (txId) {
+      checkTelegramConfig();
+    }
+  }, [txId]);
 
   const fetchDetails = useCallback(async () => {
     if (!txId) {
