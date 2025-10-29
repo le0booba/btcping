@@ -1,8 +1,7 @@
 import { sql } from '@vercel/postgres';
-import { NextApiRequest, NextApiResponse } from 'next';
 import type { WatchedTransaction } from '../types';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
   try {
     if (req.method === 'GET') {
       const { rows } = await sql`

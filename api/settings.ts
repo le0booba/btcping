@@ -1,8 +1,7 @@
 import { sql } from '@vercel/postgres';
-import { NextApiRequest, NextApiResponse } from 'next';
 import { encrypt, decrypt } from '../lib/crypto';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
   try {
     if (req.method === 'GET') {
       const { rows } = await sql`SELECT telegram_chat_id, telegram_bot_token_encrypted, telegram_notification_level FROM Settings WHERE id = 1;`;
