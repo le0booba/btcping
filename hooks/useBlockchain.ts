@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { BlockchainStats, WatchedTransaction, ApiTransaction } from '../types';
 
@@ -224,8 +225,17 @@ export function useBlockchain(isLoggedIn: boolean) {
             if (!response.ok) throw new Error('Failed to save transaction.');
             updateWatchedTx(txid, newTx);
             if (confirmations > 0) {
-              const message = `ℹ️ *Now watching a confirmed transaction.*\n\n*ID:* \`${txid}\`\n*Confirmations:* ${confirmations}`;
-              sendTelegramNotification(message);
+              const settingsRes = await fetch('/api/settings');
+              let notificationLevel = 'first';
+              if (settingsRes.ok) {
+                  const settings = await settingsRes.json();
+                  notificationLevel = settings.notificationLevel || 'first';
+              }
+              
+              if (notificationLevel !== 'none') {
+                const message = `ℹ️ *Now watching a confirmed transaction.*\n\n*ID:* \`${txid}\`\n*Confirmations:* ${confirmations}`;
+                sendTelegramNotification(message);
+              }
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unknown error occurred.');

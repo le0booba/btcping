@@ -1,13 +1,11 @@
-
 import { SignJWT, jwtVerify } from 'jose';
-import { cookies } from 'next/headers'; // Using Next.js compatible cookie management for server-side logic
 
-const secretKey = process.env.JWT_SECRET_KEY;
+const secretKey = process.env.STACK_SECRET_SERVER_KEY;
 const key = new TextEncoder().encode(secretKey);
 const COOKIE_NAME = 'session';
 
 if (!secretKey) {
-  throw new Error('JWT_SECRET_KEY environment variable is not set.');
+  throw new Error('STACK_SECRET_SERVER_KEY environment variable is not set.');
 }
 
 export async function encrypt(payload: any) {
@@ -30,8 +28,13 @@ export async function decrypt(input: string): Promise<any> {
 }
 
 export async function getSession(req: any) {
-    const sessionCookie = req.headers.get('cookie')?.split('; ').find(c => c.startsWith(`${COOKIE_NAME}=`));
+    const cookieHeader = req.headers.cookie;
+    if (!cookieHeader) return null;
+    
+    // Find the specific cookie from the cookie header string
+    const sessionCookie = cookieHeader.split('; ').find(c => c.startsWith(`${COOKIE_NAME}=`));
     if (!sessionCookie) return null;
+    
     const session = sessionCookie.split('=')[1];
     return await decrypt(session);
 }

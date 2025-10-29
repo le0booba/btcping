@@ -1,4 +1,5 @@
 
+
 import { sql } from '@vercel/postgres';
 import { withAuth } from '../lib/auth';
 
@@ -10,7 +11,7 @@ async function handler(req: any, res: any) {
     try {
       const { notificationLevel } = req.body;
 
-      if (!notificationLevel || !['first', 'first_two', 'all'].includes(notificationLevel)) {
+      if (!notificationLevel || !['first', 'first_two', 'all', 'none'].includes(notificationLevel)) {
         return res.status(400).json({ message: 'Invalid notification level provided.' });
       }
 

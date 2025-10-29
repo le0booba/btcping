@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { LoadingSpinner } from './icons/LoadingSpinner';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { XCircleIcon } from './icons/XCircleIcon';
 import { LockClosedIcon } from './icons/LockClosedIcon';
 
-type NotificationLevel = 'first' | 'first_two' | 'all';
+type NotificationLevel = 'first' | 'first_two' | 'all' | 'none';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 interface TelegramSettingsProps {
@@ -16,6 +17,7 @@ const levelOptions: { value: NotificationLevel; label: string; description: stri
   { value: 'first', label: 'First Confirmation', description: 'Notify when a transaction gets its first confirmation.' },
   { value: 'first_two', label: 'First Two Confirmations', description: 'Notify on the first and second confirmations.' },
   { value: 'all', label: 'All Confirmations', description: 'Notify on every new confirmation (can be noisy).' },
+  { value: 'none', label: 'Disable Notifications', description: 'No automatic notifications will be sent via Telegram.' },
 ];
 
 const TelegramSettings: React.FC<TelegramSettingsProps> = ({ disabled }) => {
