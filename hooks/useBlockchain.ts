@@ -111,11 +111,11 @@ export function useBlockchain() {
           updateWatchedTx(txid, {
             status: 'confirmed',
             confirmations: newConfirmations,
-            blockHeight: fullTx.status.block_height,
+            block_height: fullTx.status.block_height,
           });
         }
-      } else if (tx.blockHeight) {
-        const newConfirmations = currentBlockHeight - tx.blockHeight + 1;
+      } else if (tx.block_height) {
+        const newConfirmations = currentBlockHeight - tx.block_height + 1;
         if (newConfirmations > tx.confirmations) {
             let shouldNotify = false;
             switch (notificationLevel) {
@@ -183,7 +183,7 @@ export function useBlockchain() {
     }
 
     // Optimistic UI update
-    const pendingTx: WatchedTransaction = { id: txid, status: 'pending', confirmations: 0, blockHeight: null };
+    const pendingTx: WatchedTransaction = { id: txid, status: 'pending', confirmations: 0, block_height: null };
     setWatchedTxs(prev => new Map(prev).set(txid, pendingTx));
 
     const txData = await fetchTransaction(txid);
@@ -196,7 +196,7 @@ export function useBlockchain() {
             id: txid,
             status: confirmations > 0 ? 'confirmed' : 'unconfirmed',
             confirmations,
-            blockHeight: txData.status.block_height,
+            block_height: txData.status.block_height,
         };
         
         try {

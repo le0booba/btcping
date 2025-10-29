@@ -5,25 +5,25 @@ export default async function handler(req: any, res: any) {
   try {
     if (req.method === 'GET') {
       const { rows } = await sql`
-        SELECT txid as id, status, confirmations, "blockHeight" 
+        SELECT txid as id, status, confirmations, block_height 
         FROM WatchedTransactions 
         ORDER BY added_at DESC;
       `;
       res.status(200).json(rows);
 
     } else if (req.method === 'POST') {
-      const { id, status, confirmations, blockHeight } = req.body as WatchedTransaction;
+      const { id, status, confirmations, block_height } = req.body as WatchedTransaction;
       if (!id || typeof status === 'undefined' || typeof confirmations === 'undefined') {
         return res.status(400).json({ message: 'Missing required transaction fields.' });
       }
 
       await sql`
-        INSERT INTO WatchedTransactions (txid, status, confirmations, "blockHeight")
-        VALUES (${id}, ${status}, ${confirmations}, ${blockHeight})
+        INSERT INTO WatchedTransactions (txid, status, confirmations, block_height)
+        VALUES (${id}, ${status}, ${confirmations}, ${block_height})
         ON CONFLICT (txid) DO UPDATE SET
           status = EXCLUDED.status,
           confirmations = EXCLUDED.confirmations,
-          "blockHeight" = EXCLUDED."blockHeight";
+          block_height = EXCLUDED.block_height;
       `;
       res.status(201).json({ message: 'Transaction added or updated successfully.' });
 
@@ -45,3 +45,4 @@ export default async function handler(req: any, res: any) {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 }
+

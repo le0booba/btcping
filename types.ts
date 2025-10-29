@@ -8,7 +8,7 @@ export interface WatchedTransaction {
   id: string; // The transaction hash
   status: 'pending' | 'unconfirmed' | 'confirmed';
   confirmations: number;
-  blockHeight: number | null; // The block height where it was confirmed
+  block_height: number | null; // The block height where it was confirmed
 }
 
 // Detailed structure from mempool.space API
