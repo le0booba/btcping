@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { WatchedTransaction } from '../types';
 import { LoadingSpinner } from './icons/LoadingSpinner';
@@ -10,6 +11,8 @@ interface TransactionListProps {
   selectedTxId: string | null;
   onSelectTransaction: (txid: string) => void;
   onRemoveTransaction: (txid: string) => void;
+  isLoggedIn: boolean;
+  isLoading: boolean;
 }
 
 const TransactionItem: React.FC<{ 
@@ -64,31 +67,57 @@ const TransactionItem: React.FC<{
 };
 
 
-const TransactionList: React.FC<TransactionListProps> = ({ transactions, selectedTxId, onSelectTransaction, onRemoveTransaction }) => {
+const TransactionList: React.FC<TransactionListProps> = ({ transactions, selectedTxId, onSelectTransaction, onRemoveTransaction, isLoggedIn, isLoading }) => {
+  
+  const renderContent = () => {
+    if (isLoading) {
+        return (
+            <div className="text-center text-gray-500 py-8 flex justify-center items-center">
+                <LoadingSpinner className="h-6 w-6" />
+            </div>
+        );
+    }
+
+    if (!isLoggedIn) {
+        return (
+            <div className="text-center text-gray-500 py-8">
+              <p>Please log in to watch transactions.</p>
+              <p className="text-sm">Your watched list will appear here.</p>
+            </div>
+        );
+    }
+    
+    if (transactions.length > 0) {
+        return (
+            <ul className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+            {transactions.map(tx => (
+                <TransactionItem
+                key={tx.id}
+                tx={tx}
+                isSelected={tx.id === selectedTxId}
+                onSelect={() => onSelectTransaction(tx.id)}
+                onRemove={(e) => {
+                    e.stopPropagation(); // Prevent selection when removing
+                    onRemoveTransaction(tx.id);
+                }}
+                />
+            ))}
+            </ul>
+        );
+    }
+    
+    return (
+        <div className="text-center text-gray-500 py-8">
+            <p>No transactions are being watched.</p>
+            <p className="text-sm">Add a TXID to begin.</p>
+        </div>
+    );
+  }
+  
   return (
     <div className="bg-[#111111] border border-gray-800 p-5 rounded-lg flex-grow">
       <h2 className="text-lg font-semibold mb-4 text-white">Watched Transactions</h2>
-      {transactions.length > 0 ? (
-        <ul className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-          {transactions.map(tx => (
-            <TransactionItem
-              key={tx.id}
-              tx={tx}
-              isSelected={tx.id === selectedTxId}
-              onSelect={() => onSelectTransaction(tx.id)}
-              onRemove={(e) => {
-                e.stopPropagation(); // Prevent selection when removing
-                onRemoveTransaction(tx.id);
-              }}
-            />
-          ))}
-        </ul>
-      ) : (
-        <div className="text-center text-gray-500 py-8">
-          <p>No transactions are being watched.</p>
-          <p className="text-sm">Add a TXID to begin.</p>
-        </div>
-      )}
+      {renderContent()}
     </div>
   );
 };

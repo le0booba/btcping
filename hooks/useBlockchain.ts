@@ -1,10 +1,11 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { BlockchainStats, WatchedTransaction, ApiTransaction } from '../types';
 
 const API_BASE_URL = 'https://mempool.space/api';
 const WEBSOCKET_URL = 'wss://mempool.space/api/v1/ws';
 
-export function useBlockchain() {
+export function useBlockchain(isLoggedIn: boolean) {
   const [stats, setStats] = useState<BlockchainStats>({ blockHeight: null });
   const [watchedTxs, setWatchedTxs] = useState<Map<string, WatchedTransaction>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -12,11 +13,20 @@ export function useBlockchain() {
 
   const watchedTxsRef = useRef(watchedTxs);
   watchedTxsRef.current = watchedTxs;
-
+  
   useEffect(() => {
     const loadInitialTransactions = async () => {
+        if (!isLoggedIn) {
+            setWatchedTxs(new Map());
+            setIsDataLoaded(true);
+            return;
+        }
       try {
         const response = await fetch('/api/transactions');
+        if (response.status === 401) { // Not logged in
+            setIsDataLoaded(true);
+            return;
+        }
         if (!response.ok) {
           throw new Error('Could not fetch watched transactions.');
         }
@@ -29,7 +39,7 @@ export function useBlockchain() {
       }
     };
     loadInitialTransactions();
-  }, []);
+  }, [isLoggedIn]);
   
   const sendTelegramNotification = useCallback(async (message: string) => {
     try {
@@ -37,7 +47,7 @@ export function useBlockchain() {
         const credsResponse = await fetch('/api/settings');
         if(!credsResponse.ok) {
             // Silently fail if settings are not configured on the backend
-            if (credsResponse.status === 404) return;
+            if (credsResponse.status === 404 || credsResponse.status === 401) return;
             throw new Error('Could not retrieve Telegram settings.');
         }
         const { chatId, botToken } = await credsResponse.json();
@@ -83,8 +93,6 @@ export function useBlockchain() {
         const newMap = new Map(prev);
         const existingTx = newMap.get(txid);
         if (existingTx) {
-            // FIX: The error "Spread types may only be created from object types" points to this section.
-            // By creating an intermediate variable for the updated transaction, we can avoid potential type inference issues with the spread syntax.
             const updatedTx: WatchedTransaction = { ...existingTx, ...updates };
             newMap.set(txid, updatedTx);
         }
@@ -93,6 +101,8 @@ export function useBlockchain() {
   }, []);
 
   const checkConfirmations = useCallback(async (currentBlockHeight: number) => {
+    if (!isLoggedIn) return;
+
     const res = await fetch('/api/settings');
     let notificationLevel = 'first';
     if (res.ok) {
@@ -139,7 +149,7 @@ export function useBlockchain() {
         }
       }
     }
-  }, [fetchTransaction, updateWatchedTx, sendTelegramNotification]);
+  }, [fetchTransaction, updateWatchedTx, sendTelegramNotification, isLoggedIn]);
 
 
   useEffect(() => {
@@ -175,6 +185,10 @@ export function useBlockchain() {
   }, [checkConfirmations, isDataLoaded]);
 
   const addTransaction = async (txid: string) => {
+    if (!isLoggedIn) {
+        setError("Please log in to watch transactions.");
+        return;
+    }
     setError(null);
     if (!txid || txid.length !== 64 || !/^[a-fA-F0-9]+$/.test(txid)) {
         setError("Invalid transaction ID format.");
@@ -185,7 +199,6 @@ export function useBlockchain() {
         return;
     }
 
-    // Optimistic UI update
     const pendingTx: WatchedTransaction = { id: txid, status: 'pending', confirmations: 0, block_height: null };
     setWatchedTxs(prev => new Map(prev).set(txid, pendingTx));
 
@@ -216,7 +229,6 @@ export function useBlockchain() {
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-            // Rollback optimistic update
             setWatchedTxs(prev => {
                 const newMap = new Map(prev);
                 newMap.delete(txid);
@@ -224,7 +236,6 @@ export function useBlockchain() {
             });
         }
     } else {
-        // Rollback optimistic update
         setWatchedTxs(prev => {
             const newMap = new Map(prev);
             newMap.delete(txid);
@@ -234,8 +245,8 @@ export function useBlockchain() {
   };
 
   const removeTransaction = async (txid: string) => {
+    if (!isLoggedIn) return;
     const originalTxs = new Map(watchedTxs);
-    // Optimistic UI update
     setWatchedTxs(prev => {
         const newMap = new Map(prev);
         newMap.delete(txid);
@@ -249,7 +260,6 @@ export function useBlockchain() {
         }
     } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        // Rollback on failure
         setWatchedTxs(originalTxs);
     }
   };

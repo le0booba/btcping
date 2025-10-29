@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from './components/Header';
 import TransactionInput from './components/TransactionInput';
@@ -7,9 +8,19 @@ import { useBlockchain } from './hooks/useBlockchain';
 import { XCircleIcon } from './components/icons/XCircleIcon';
 import TelegramSettings from './components/TelegramSettings';
 import FeeChart from './components/FeeChart';
+import { useAuth } from './hooks/useAuth';
 
 function App() {
-  const { stats, watchedTxs, addTransaction, removeTransaction, error, setError, sendTelegramNotification } = useBlockchain();
+  const { user, isLoading } = useAuth();
+  const { 
+    stats, 
+    watchedTxs, 
+    addTransaction, 
+    removeTransaction, 
+    error, 
+    setError, 
+    sendTelegramNotification 
+  } = useBlockchain(!!user);
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
 
   const handleRemoveTransaction = (txid: string) => {
@@ -18,6 +29,8 @@ function App() {
     }
     removeTransaction(txid);
   };
+  
+  const isUserLoggedIn = !!user;
 
   return (
     <div className="min-h-screen bg-black text-white p-4 sm:p-6 lg:p-8">
@@ -35,14 +48,16 @@ function App() {
 
         <main className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 flex flex-col gap-6">
-            <TransactionInput onAddTransaction={addTransaction} />
-            <TelegramSettings />
+            <TransactionInput onAddTransaction={addTransaction} disabled={!isUserLoggedIn || isLoading} />
+            <TelegramSettings disabled={!isUserLoggedIn || isLoading} />
             <FeeChart />
             <TransactionList
               transactions={watchedTxs}
               selectedTxId={selectedTxId}
               onSelectTransaction={setSelectedTxId}
               onRemoveTransaction={handleRemoveTransaction}
+              isLoggedIn={isUserLoggedIn}
+              isLoading={isLoading}
             />
           </div>
           <div className="lg:col-span-2">

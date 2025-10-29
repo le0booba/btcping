@@ -1,7 +1,11 @@
-import { sql } from '@vercel/postgres';
 
-export default async function handler(req: any, res: any) {
-  // POST request handles setting the notification level and doesn't depend on env vars
+import { sql } from '@vercel/postgres';
+import { withAuth } from '../lib/auth';
+
+async function handler(req: any, res: any) {
+  const { user } = req; // Injected by withAuth middleware
+
+  // POST request handles setting the notification level
   if (req.method === 'POST') {
     try {
       const { notificationLevel } = req.body;
@@ -12,16 +16,18 @@ export default async function handler(req: any, res: any) {
 
       // Ensure table exists before inserting
       await sql`
-        CREATE TABLE IF NOT EXISTS AppSettings (
-            key VARCHAR(255) PRIMARY KEY,
-            value VARCHAR(255) NOT NULL
+        CREATE TABLE IF NOT EXISTS UserSettings (
+            key VARCHAR(255) NOT NULL,
+            value VARCHAR(255) NOT NULL,
+            user_email TEXT NOT NULL,
+            PRIMARY KEY (key, user_email)
         );
       `;
       
       await sql`
-        INSERT INTO AppSettings (key, value)
-        VALUES ('notificationLevel', ${notificationLevel})
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+        INSERT INTO UserSettings (key, value, user_email)
+        VALUES ('notificationLevel', ${notificationLevel}, ${user.email})
+        ON CONFLICT (key, user_email) DO UPDATE SET value = EXCLUDED.value;
       `;
 
       return res.status(200).json({ message: 'Settings updated successfully.' });
@@ -37,22 +43,20 @@ export default async function handler(req: any, res: any) {
 
     // Core Telegram settings must be configured via environment variables for GET to succeed
     if (!chatId || !botToken) {
-      return res.status(404).json({ message: 'Telegram settings are not configured in environment variables.' });
+      return res.status(404).json({ message: 'Telegram settings are not configured on the server.' });
     }
 
     try {
       let notificationLevel = 'first'; // Default value
       try {
         const { rows } = await sql`
-            SELECT value FROM AppSettings WHERE key = 'notificationLevel' LIMIT 1;
+            SELECT value FROM UserSettings WHERE key = 'notificationLevel' AND user_email = ${user.email} LIMIT 1;
         `;
         if (rows.length > 0) {
             notificationLevel = rows[0].value;
         }
       } catch (e: any) {
-          // If table doesn't exist, we just proceed with the default value.
-          // The POST handler will create the table when settings are first saved.
-          if (!e.message.includes('relation "appsettings" does not exist')) {
+          if (!e.message.includes('relation "usersettings" does not exist')) {
               throw e; // Re-throw other errors
           }
       }
@@ -72,3 +76,5 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Allow', ['GET', 'POST']);
   res.status(405).end(`Method ${req.method} Not Allowed`);
 }
+
+export default withAuth(handler);

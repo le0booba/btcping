@@ -1,10 +1,16 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { LoadingSpinner } from './icons/LoadingSpinner';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { XCircleIcon } from './icons/XCircleIcon';
+import { LockClosedIcon } from './icons/LockClosedIcon';
 
 type NotificationLevel = 'first' | 'first_two' | 'all';
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+interface TelegramSettingsProps {
+    disabled: boolean;
+}
 
 const levelOptions: { value: NotificationLevel; label: string; description: string }[] = [
   { value: 'first', label: 'First Confirmation', description: 'Notify when a transaction gets its first confirmation.' },
@@ -12,7 +18,7 @@ const levelOptions: { value: NotificationLevel; label: string; description: stri
   { value: 'all', label: 'All Confirmations', description: 'Notify on every new confirmation (can be noisy).' },
 ];
 
-const TelegramSettings: React.FC = () => {
+const TelegramSettings: React.FC<TelegramSettingsProps> = ({ disabled }) => {
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentLevel, setCurrentLevel] = useState<NotificationLevel>('first');
@@ -20,12 +26,16 @@ const TelegramSettings: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
 
   const checkSettings = useCallback(async () => {
+    if (disabled) {
+        setIsLoading(false);
+        return;
+    }
     setIsLoading(true);
     try {
       const response = await fetch('/api/settings');
       if (response.ok) {
         const data = await response.json();
-        setIsConfigured(true);
+        setIsConfigured(!!(data.chatId && data.botToken));
         setCurrentLevel(data.notificationLevel || 'first');
         setInitialLevel(data.notificationLevel || 'first');
       } else {
@@ -37,7 +47,7 @@ const TelegramSettings: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [disabled]);
 
   useEffect(() => {
     checkSettings();
@@ -53,7 +63,7 @@ const TelegramSettings: React.FC = () => {
       });
       if (!response.ok) throw new Error('Failed to save settings');
       setSaveStatus('saved');
-      setInitialLevel(currentLevel); // Update initial level to new saved state
+      setInitialLevel(currentLevel);
     } catch (error) {
       console.error('Failed to save settings:', error);
       setSaveStatus('error');
@@ -61,6 +71,18 @@ const TelegramSettings: React.FC = () => {
       setTimeout(() => setSaveStatus('idle'), 2000);
     }
   };
+
+  if (disabled && !isLoading) {
+    return (
+      <div className="bg-[#111111] border border-gray-800 p-5 rounded-lg">
+        <h2 className="text-lg font-semibold mb-3 text-white">Telegram Notifications</h2>
+        <div className="flex items-center gap-3 bg-gray-900/50 p-4 rounded-md text-center">
+            <LockClosedIcon className="h-5 w-5 text-gray-500" />
+            <p className="text-sm text-gray-500">Please log in to configure notifications.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
