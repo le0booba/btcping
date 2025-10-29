@@ -1,0 +1,5 @@
+{
+  "name": "BTC Transaction Tracker",
+  "description": "A web application to monitor Bitcoin transactions in real-time. Track confirmations, view transaction details, and get key blockchain statistics like the current block height and estimated confirmation times.",
+  "requestFramePermissions": []
+}
